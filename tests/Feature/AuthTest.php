@@ -101,7 +101,8 @@ class AuthTest extends TestCase
             'expires_at' => '2025-12-31 23:59:59'
         ]);
 
-        $slug = $linkResponse -> json('slug');
+        $slug = $linkResponse -> json('link.slug');
+        $this -> assertNotEmpty($slug, 'Slug não retornado pelo store()');
 
         // confere contador
         $this -> assertDatabaseHas('links', [
