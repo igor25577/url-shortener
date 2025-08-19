@@ -32,7 +32,7 @@ A aplicação permite:
 ## Setup Rápido
 
 1. Clonar e instalar dependências:
-2. git clone <URL_DO_REPO>
+2. git clone https://github.com/igor25577/url-shortener.git
 cd url-shortener
 composer install
 
