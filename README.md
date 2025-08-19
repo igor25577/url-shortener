@@ -1,61 +1,171 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# URL Shortener – Expiração, QR Code, Métricas em Tempo Real e TDD
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplicação web para encurtar URLs com expiração opcional, QR Code, redirecionamento com contagem de cliques, dashboard de métricas e desenvolvimento orientado a testes (TDD). Construída com Laravel, autenticação via Sanctum, PostgreSQL (dev/prod) e SQLite in-memory nos testes.
 
-## About Laravel
+## Visão Geral
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+A aplicação permite:
+- Registro, login e logout de usuários.
+- Criação de links encurtados (slug único), com expiração opcional e QR Code.
+- Redirecionamento público por slug, incrementando cliques e respeitando expiração.
+- Dashboard protegido (MVC) com métricas: totais, ativos/expirados, top por cliques e evolução por mês.
+- Fluxo de versionamento com branches por feature, PRs descritivos e commits atômicos.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Backend: Laravel (PHP 8.x)
+- Autenticação: Laravel Sanctum
+- Banco de dados: PostgreSQL (desenvolvimento/produção)
+- Testes: PHPUnit (SQLite in-memory)
+- Front (mínimo): Blade/Routes MVC para o dashboard (opcional)
+- QR Code: SimpleSoftwareIO/QRCode
+- Ambiente local sugerido: Laragon (Windows) ou Valet/Herd (macOS)
 
-## Learning Laravel
+## Requisitos
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP 8.1+
+- Composer
+- PostgreSQL
+- Extensões PHP comuns do Laravel
+- Node.js (opcional para front)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Setup Rápido
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1. Clonar e instalar dependências:
+2. git clone https://github.com/igor25577/url-shortener.git
+cd url-shortener
+composer install
 
-## Laravel Sponsors
+2. Variáveis de ambiente:
+cp .env.example .env
+php artisan key:generate
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Ajuste as variáveis DB_* no .env conforme seu ambiente (por padrão, PostgreSQL local).
 
-### Premium Partners
+3. Migrations (e seeds, se existirem):
+php artisan migrate
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
 
-## Contributing
+4. Servir a aplicação:
+php artisan serve
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Acesse: http://localhost:8000
 
-## Code of Conduct
+## Endpoints Principais
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Autenticação:
+- POST /api/auth/register — registra um usuário (name, email, password)
+- POST /api/auth/login — autentica e emite token (Sanctum)
+- POST /api/auth/logout — encerra sessão (requer auth)
 
-## Security Vulnerabilities
+Links (protegidos — requer auth):
+- POST /api/links — cria link curto
+- Campos: original_url (obrigatório), expires_at (opcional, > now)
+- Response inclui: link.slug, short_url, qr_code (data URI)
+- GET /api/links — lista links do usuário autenticado
+- GET /api/links/{id} — detalhes do link do usuário (ACL aplicada)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Redirecionamento (público):
+- GET /api/s/{slug} — redireciona para original_url se ativo e não expirado
+- Incrementa click_count
+- Se expirado, retorna 410 (Gone)
 
-## License
+Dashboard e Métricas (protegidos — requer auth):
+- GET /api/dashboard — página MVC (opcional)
+- GET /api/metrics/summary — totais, ativos, expirados, cliques
+- GET /api/metrics/top — top links por cliques
+- GET /api/metrics/by-month — agregação mensal
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Observação: caminhos variam conforme sua configuração de rotas. No projeto atual, o redirecionamento está sob /api/s/{slug}.
+
+## Modelo de Dados (resumo)
+
+users
+- id, name, email (unique), password, timestamps
+
+links
+- id, user_id (FK), original_url, slug (unique), status (active|expired|inactive), expires_at (nullable), click_count (int, default 0), timestamps
+
+visits (opcional, se implementado)
+- id, link_id (FK), ip_hash (ou IP truncado), user_agent, created_at
+
+## Regras Importantes
+
+- Validação de criação de link:
+- original_url: obrigatória e válida (http/https)
+- expires_at: opcional; quando fornecida, deve ser posterior a now()
+- Redirecionamento:
+- Se expirado: retorna 410 (Gone) e não incrementa cliques
+- Se ativo: incrementa click_count e redireciona (302) para original_url
+- Segurança:
+- Rotas privadas protegidas por Sanctum
+- ACL: usuário só acessa os próprios links nos endpoints protegidos
+
+## Testes
+
+Os testes de feature cobrem:
+- Auth: registro, login e logout; proteção de rotas privadas
+- Links: criação (validações), listagem por usuário, ACL no show, redirect com incremento, expiração (410)
+- Métricas: summary, top e by-month (compatível com SQLite nos testes)
+
+Para rodar:
+php artisan test
+
+
+Notas:
+- Os testes usam SQLite em memória (ajustado na suíte).
+- Para cobertura HTML (opcional, requer Xdebug):
+./vendor/bin/phpunit --coverage-html coverage
+
+
+## Métricas em “Tempo Real”
+
+- Implementação recomendada via polling a cada 3–5s no dashboard protegido.
+- Alternativas: SSE/WebSockets (opcional, fora do escopo mínimo).
+- Índices recomendados no banco:
+- links.slug (unique)
+- links.status, links.expires_at
+- visits.link_id, visits.created_at (se tabela for utilizada)
+
+## Boas Práticas de Versionamento (GitHub)
+
+- Branch principal: main (ou master)
+- Branches por feature: feat/auth, feat/shortener, feat/redirect, feat/dashboard
+- Pull Requests com:
+- Descrição objetiva do que foi feito
+- Evidências (logs de testes, prints/GIFs)
+- Commits atômicos e mensagens claras (Conventional Commits)
+
+Exemplos de mensagens:
+- feat(auth): register/login with Sanctum
+- test(links): redirect increment and expiration (410)
+- fix(metrics): correct active/expired counts based on expires_at
+
+## Observabilidade e Segurança
+
+- Logs de validação/exceções via stack padrão do Laravel
+- Rate limiting (opcional) na criação de links (ex.: 30/min por usuário)
+- Não exponha IP completo em telas públicas; anonimização recomendada em visits
+
+## Notas de Implementação
+
+- QR Code gerado a partir da short_url (ex.: /api/s/{slug})
+- RedirectController retorna 410 para links expirados; incrementa click_count antes de redirecionar
+- Resposta de criação inclui `link.slug` (utilizado pelos testes)
+
+## Desenvolvimento
+
+Scripts úteis:
+- Limpar cache/config (se necessário):
+php artisan optimize:clear
+
+- Rodar migrations:
+php artisan migrate
+
+- Servir aplicação:
+php artisan serve
+
+
+## Licença
+
+Este projeto é disponibilizado para avaliação técnica. Ajuste a licença conforme sua necessidade.

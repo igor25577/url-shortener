@@ -110,7 +110,11 @@ class AuthTest extends TestCase
         ]);
 
         $slug = $linkResponse -> json('link.slug');
+<<<<<<< HEAD
         $this -> assertNotEmpty($slug, 'Slug não retornado pelo store');
+=======
+        $this -> assertNotEmpty($slug, 'Slug não retornado pelo store()');
+>>>>>>> main
 
         // confere contador
         $this -> assertDatabaseHas('links', [
