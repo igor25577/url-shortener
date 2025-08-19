@@ -54,24 +54,19 @@ class LinkController extends Controller
 
     }
 
-    public function index(Request $request)
+    public function index(\Illuminate\Http\Request $request)
     {
-        // recupera apenas links de usuarios logados
-        $links = Link::where('user_id', $request -> user() -> id) -> orderBy('created_at', 'desc') -> get();
-        return response() ->json($links);
-    }
-
-    public function show(Request $request, $id)
-    {
-        $link = Link::where('user_id', $request -> user() -> id) -> where('id', $id) -> first();
-
-        if(!$link) {
-            return response() ->json ([
-                'error' => 'Link não encontrado'
-            ], 404);
+        if (!$request->user()) {
+            return response()->json(['message' => 'Unauthenticated (debug)'], 401);
         }
 
-        return response () -> json($link);
+        $user = $request->user();
+
+        $links = \App\Models\Link::where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json(['data' => $links], 200);
     }
 
 }

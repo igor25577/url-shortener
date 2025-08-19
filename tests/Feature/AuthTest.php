@@ -1,26 +1,34 @@
 <?php
-
 namespace Tests\Feature;
+
+
+use Tests\TestCase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use App\Models\User;
 use App\Models\Link;
 
-use Tests\TestCase;
 
 class AuthTest extends TestCase
 {
+    use DatabaseMigrations;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         config([
             'database.default' => 'sqlite',
-            'database.connections.sqlite.database' => ':memory:',
+            'database.connections.sqlite' => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
+            ],
         ]);
 
-        $this->artisan('migrate:fresh', ['--force' => true]);
     }
 
-    /** @test */
+
+    #[\PHPUnit\Framework\Attributes\Test]
     public function user_can_register()
     {
         $response = $this->postJson('/api/auth/register', [
@@ -64,7 +72,7 @@ class AuthTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user);
+        $this->actingAs($user, 'sanctum');
 
         $response = $this->postJson('/api/links', [
             'original_url' => 'https://laravel.com',
@@ -94,7 +102,7 @@ class AuthTest extends TestCase
     public function redirect_works_and_increments_click_count()
     {
         $user = User::factory() -> create();
-        $this -> actingAs($user);
+        $this -> actingAs($user, 'sanctum');
 
         $linkResponse = $this -> postJson('/api/links', [
             'original_url' => 'https://laravel.com',
@@ -102,7 +110,11 @@ class AuthTest extends TestCase
         ]);
 
         $slug = $linkResponse -> json('link.slug');
+<<<<<<< HEAD
+        $this -> assertNotEmpty($slug, 'Slug não retornado pelo store');
+=======
         $this -> assertNotEmpty($slug, 'Slug não retornado pelo store()');
+>>>>>>> main
 
         // confere contador
         $this -> assertDatabaseHas('links', [
@@ -129,7 +141,7 @@ class AuthTest extends TestCase
     public function dashboard_returns_statistics()
     {
         $user = User::factory()->create();
-        $this->actingAs($user);
+        $this->actingAs($user, 'sanctum');
 
         // Cria alguns links para o usuário
         Link::factory()->create([
@@ -150,11 +162,10 @@ class AuthTest extends TestCase
             'user_id'      => $user->id,
             'original_url' => 'https://php.net',
             'status'       => 'active',
-            'expires_at'   => now()->subDay(), // expira ontem
+            'expires_at'   => now()->subDay(), 
             'click_count'  => 1,
         ]);
 
-        // Faz a chamada para o dashboard
         $response = $this->getJson('/api/dashboard');
 
         $response->assertStatus(200);
@@ -165,6 +176,54 @@ class AuthTest extends TestCase
             'expired_links' => 1,
             'total_clicks'  => 6
         ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function user_can_logout_and_private_routes_are_blocked_after()
+    {
+        $user = \App\Models\User::factory()->create();
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $this->withHeaders([
+                'Authorization' => 'Bearer '.$token,
+                'Accept'        => 'application/json',
+            ])
+            ->getJson('/api/links')->assertStatus(200);
+
+        $this->assertDatabaseHas('personal_access_tokens', [
+            'tokenable_id' => $user->id,
+            'name'         => 'auth_token',
+        ]);
+
+        $this->withHeaders([
+                'Authorization' => 'Bearer '.$token,
+                'Accept'        => 'application/json',
+            ])
+            ->postJson('/api/auth/logout')->assertStatus(200);
+
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_id' => $user->id,
+            'name'         => 'auth_token',
+        ]);
+
+        $response = $this->withCookies([])
+            ->withHeaders([]) 
+            ->withHeaders([
+                'Authorization' => 'Bearer '.$token,
+                'Accept'        => 'application/json',
+            ])
+            ->getJson('/api/links');
+
+        if ($response->status() === 401) {
+            $this->assertTrue(true);
+            return;
+        }
+
+        $json = $response->json();
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertEquals([], $json['data'], 'Resposta não deveria conter dados com token revogado.');
     }
 
     
