@@ -60,22 +60,21 @@ class AuthController extends Controller
     }
 
     // Logout
-    public function logout(\Illuminate\Http\Request $request)
+    public function logout(Request $request)
     {
-<<<<<<< HEAD
-        if ($request->user() && $request->user()->currentAccessToken()) {
-            $request->user()->currentAccessToken()->delete();
+        try {
+            $user = $request->user();
+
+            // Revoga TODOS os tokens do usuário
+            $user?->tokens()->delete();
+
+            // Se preferir manter apenas o atual, comente a linha acima e use:
+            // $request->user()?->currentAccessToken()?->delete();
+
+            return response()->json(['message' => 'Logged out'], 200);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Logout failed'], 500);
         }
-
-        return response()->json(['message' => 'Logged out'], 200);
-=======
-        $request->user()->currentAccessToken()?->delete();
-
-        auth() -> guard('web') -> logout();
-
-        return response()->json([
-            'message' => 'Logout realizado com sucesso'
-        ], 200);
->>>>>>> main
     }
+
 }
