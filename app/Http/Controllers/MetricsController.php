@@ -3,82 +3,102 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Link;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use App\Models\Link;
 
 class MetricsController extends Controller
 {
-    //Resumo com totais
     public function summary(Request $request)
     {
         $userId = $request->user()->id;
+        $now = Carbon::now();
 
-        $totalLinks    = Link::where('user_id', $userId)->count();
-        $totalClicks   = Link::where('user_id', $userId)->sum('click_count');
+        $totalLinks = (int) Link::where('user_id', $userId)->count();
+        $totalClicks = (int) Link::where('user_id', $userId)->sum('click_count');
 
-        $activeLinks = Link::where('user_id', $userId)
-            ->where(function ($q) {
-                $q->whereNull('expires_at')
-                  ->orWhere('expires_at', '>', now());
+        // Categorias mutuamente exclusivas
+        $inactive = (int) Link::where('user_id', $userId)
+            ->where('status', 'inactive')
+            ->count();
+
+        $active = (int) Link::where('user_id', $userId)
+            ->where('status', '!=', 'inactive')
+            ->where(function ($q) use ($now) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', $now);
             })
             ->count();
 
-        $expiredLinks = Link::where('user_id', $userId)
+        $expired = (int) Link::where('user_id', $userId)
+            ->where('status', '!=', 'inactive')
             ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', now())
+            ->where('expires_at', '<=', $now)
             ->count();
 
         return response()->json([
-            'total_links'   => $totalLinks,
-            'total_clicks'  => $totalClicks,
-            'active_links'  => $activeLinks,
-            'expired_links' => $expiredLinks,
-        ]);
+            'totals' => [
+                'total_links' => $totalLinks,
+                'total_clicks' => $totalClicks,
+            ],
+            'by_status' => [
+                'active' => $active,
+                'expired' => $expired,
+                'inactive' => $inactive,
+            ],
+        ], 200);
     }
 
-    // Os mais acessados
     public function top(Request $request)
     {
         $userId = $request->user()->id;
 
         $top = Link::where('user_id', $userId)
             ->orderByDesc('click_count')
-            ->take(5)
-            ->get(['id', 'original_url', 'slug', 'click_count']);
+            ->limit(5)
+            ->get(['id', 'slug', 'original_url', 'click_count']);
 
-        return response()->json($top);
+        return response()->json(['top_links' => $top], 200);
     }
 
-    // Links criados por mês
     public function byMonth(Request $request)
     {
         $userId = $request->user()->id;
 
-        if (DB::connection()->getDriverName() === 'sqlite') {
-            // para testes (SQLite)
-            $stats = Link::select(
-                DB::raw("strftime('%Y-%m', created_at) as month"),
-                DB::raw('COUNT(*) as total_links'),
-                DB::raw('SUM(click_count) as total_clicks')
-            )
-            ->where('user_id', $userId)
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
+        // Últimos 6 meses (inclui o mês atual)
+        $start = Carbon::now()->subMonths(5)->startOfMonth();
+        $end = Carbon::now()->endOfMonth();
+
+        // Formatação por driver
+        $driver = DB::getDriverName();
+        if ($driver === 'pgsql') {
+            $formatExpr = "TO_CHAR(created_at, 'YYYY-MM')";
+        } elseif ($driver === 'sqlite') {
+            $formatExpr = "strftime('%Y-%m', created_at)";
         } else {
-            // para Postgres/MySQL
-            $stats = Link::select(
-                DB::raw("DATE_TRUNC('month', created_at) as month"),
-                DB::raw('COUNT(*) as total_links'),
-                DB::raw('SUM(click_count) as total_clicks')
-            )
-            ->where('user_id', $userId)
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
+            
+            $formatExpr = "DATE_FORMAT(created_at, '%Y-%m')";
         }
 
-        return response()->json($stats);
+        // Links criados por mês no período
+        $linksPerMonthRaw = Link::where('user_id', $userId)
+            ->whereBetween('created_at', [$start, $end])
+            ->select(DB::raw("$formatExpr as ym"), DB::raw('COUNT(*) as c'))
+            ->groupBy('ym')
+            ->orderBy('ym')
+            ->pluck('c', 'ym')
+            ->all();
+
+        // Monta 6 meses contínuos, preenchendo zeros
+        $months = [];
+        for ($i = 0; $i < 6; $i++) {
+            $m = $start->copy()->addMonths($i)->format('Y-m');
+            $months[] = [
+                'month' => $m,
+                'links' => (int) ($linksPerMonthRaw[$m] ?? 0),
+                'clicks' => 0, 
+            ];
+        }
+
+        return response()->json(['months' => $months], 200);
     }
 }
