@@ -17,4 +17,10 @@ class Link extends Model
         'expires_at',
         'user_id',
     ];
+
+    protected $casts = [
+        'expires_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
 }

@@ -12,46 +12,31 @@ class DashboardController extends Controller
         $userId = $request->user()->id;
         $now = now();
 
-<<<<<<< HEAD
-        $totalLinks = \App\Models\Link::where('user_id', $userId)->count();
-
-        $activeLinks = \App\Models\Link::where('user_id', $userId)
-            ->where('status', 'active')
-            ->where(function ($q) use ($now) {
-                $q->whereNull('expires_at')
-                ->orWhere('expires_at', '>', $now);
-            })
-            ->count();
-
-        $expiredLinks = \App\Models\Link::where('user_id', $userId)
-=======
+        // totais por usuário
         $totalLinks = Link::where('user_id', $userId)->count();
 
+        // ativo = não expirado
         $activeLinks = Link::where('user_id', $userId)
-            ->where('status', 'active')
             ->where(function ($q) use ($now) {
                 $q->whereNull('expires_at')
                   ->orWhere('expires_at', '>', $now);
             })
             ->count();
 
+        // expirado = expires_at passado
         $expiredLinks = Link::where('user_id', $userId)
->>>>>>> main
             ->whereNotNull('expires_at')
             ->where('expires_at', '<=', $now)
             ->count();
 
-<<<<<<< HEAD
-        $totalClicks = \App\Models\Link::where('user_id', $userId)->sum('click_count');
-=======
+        // soma dos cliques
         $totalClicks = Link::where('user_id', $userId)->sum('click_count');
->>>>>>> main
 
         return response()->json([
             'total_links'   => $totalLinks,
             'active_links'  => $activeLinks,
             'expired_links' => $expiredLinks,
             'total_clicks'  => $totalClicks,
-        ]);
+        ], 200);
     }
 }
