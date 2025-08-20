@@ -18,24 +18,6 @@ class DashboardController extends Controller
         $totalLinks = Link::where('user_id', $userId)->count();
         $totalClicks = (int) Link::where('user_id', $userId)->sum('click_count');
 
-        // Por status 
-        $activeLinks = Link::where('user_id', $userId)
-            ->where(function ($q) use ($now) {
-                $q->whereNull('expires_at')
-                  ->orWhere('expires_at', '>', $now);
-            })
-            ->count();
-
-        $expiredLinks = Link::where('user_id', $userId)
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', $now)
-            ->count();
-
-        // Se você usa um campo 'status' no banco além da regra de expiração
-        $inactiveLinks = Link::where('user_id', $userId)
-            ->where('status', 'inactive')
-            ->count();
-
         // Últimos 7 dias: links criados por dia
         $start = Carbon::now()->subDays(6)->startOfDay();
         $end = Carbon::now()->endOfDay();
@@ -57,7 +39,7 @@ class DashboardController extends Controller
             ];
         }
 
-        // Últimos 7 dias: clicks_by_day 
+        // Últimos 7 dias: clicks_by_day (sem visits -> zeros)
         $clicksByDay = [];
         for ($i = 0; $i < 7; $i++) {
             $day = $start->copy()->addDays($i)->toDateString();
@@ -69,6 +51,25 @@ class DashboardController extends Controller
             ->orderByDesc('click_count')
             ->limit(5)
             ->get(['id', 'slug', 'original_url', 'click_count']);
+
+        // Contagens por status (categorias mutuamente exclusivas)
+        $inactiveLinks = Link::where('user_id', $userId)
+            ->where('status', 'inactive')
+            ->count();
+
+        $activeLinks = Link::where('user_id', $userId)
+            ->where('status', '!=', 'inactive') // somente não-inativos
+            ->where(function ($q) use ($now) {
+                $q->whereNull('expires_at')
+                  ->orWhere('expires_at', '>', $now);
+            })
+            ->count();
+
+        $expiredLinks = Link::where('user_id', $userId)
+            ->where('status', '!=', 'inactive') // somente não-inativos
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', $now)
+            ->count();
 
         return response()->json([
             'totals' => [
