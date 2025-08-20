@@ -67,7 +67,7 @@ class LinkTest extends TestCase
         $res = $this -> getJson('/api/links');
 
         $res -> assertStatus(200);
-        $data = $res -> json();
+        $data = $res -> json('data');
 
         $this -> assertIsArray($data);
         $this -> assertCount(2, $data);
@@ -104,7 +104,8 @@ class LinkTest extends TestCase
             'expires_at' => now() -> addDay() -> format('Y-m-d H:i:s'),
         ]) -> assertStatus(201);
 
-        $slug = $create -> json('link.slug');
+        $slug = $create -> json('slug');
+        $this->assertNotEmpty($slug, 'Slug não retornado pelo store');
 
         // contador
         $this -> assertDatabaseHas('links', [
