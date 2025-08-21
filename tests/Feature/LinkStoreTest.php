@@ -2,33 +2,26 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
 use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Tests\TestCase;
 
 class LinkStoreTest extends TestCase
 {
     use DatabaseMigrations;
 
-    protected function setUp(): void
+    public function test_store_returns_qrcode_rl(): void
     {
-        parent::setUp();
+        $user = User::factory()->create();
 
-        // dtb in memory somente para teste
-        config([
-            'database.default' => 'sqlite',
-            'database.connections.sqlite' => [
-                'driver' => 'sqlite',
-                'database' => ':memory:',
-                'prefix' => '',
-            ],
-        ]);
-    }
+        // login para obter token
+        $login = $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertStatus(200);
 
-    public function test_store_returns_qrcode_rl()
-    {
-        $user = User::factory() -> create();
-        $this->actingAs($user, 'sanctum');
+        $token = $login->json('token');
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token]);
 
         $payload = ['original_url' => 'https://laravel.com'];
         $res = $this->postJson('/api/links', $payload);

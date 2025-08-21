@@ -1,41 +1,31 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\LinkController;
-use App\Http\Controllers\RedirectController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MetricsController;
-use App\Http\Controllers\QrCodeController; 
+use App\Http\Controllers\RedirectController;
+use App\Http\Controllers\QrCodeController;
 
-// Rotas públicas ------------------------------
+// Rotas públicas
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
-// QR Code público por slug 
+// Redirecionamento público por slug e QR público por slug
+Route::get('/s/{slug}', [RedirectController::class, 'redirect']);
 Route::get('/qrcode/{slug}', [QrCodeController::class, 'showBySlug']);
 
-// Teste rápido (opcional)
-Route::get('/ping', function () {
-    return response()->json(['message' => 'API Online']);
-});
-
-// Registro e login
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
-
-// Redirecionamento pelo slug
-Route::get('/s/{slug}', [\App\Http\Controllers\RedirectController::class, 'bySlug']);
-
-// Rotas protegidas (somente autenticados) -----
-Route::middleware('auth:sanctum')->group(function () {
-
+// Rotas protegidas: exigem Bearer token SEM sessão/cookie
+Route::middleware(['auth.api_only', 'auth:sanctum'])->group(function () {
     // Auth
-    Route::post('/auth/logout', [AuthController::class, 'logout']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']); // opcional
 
     // Links
-    Route::post('/links', [LinkController::class, 'store']);      // criar link
-    Route::get('/links', [LinkController::class, 'index']);       // listar links do usuário
-    Route::get('/links/{id}', [LinkController::class, 'show']);   // detalhes de um link
+    Route::post('/links', [LinkController::class, 'store']);
+    Route::get('/links', [LinkController::class, 'index']);
+    Route::get('/links/{id}', [LinkController::class, 'show']);
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
@@ -45,6 +35,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/metrics/top', [MetricsController::class, 'top']);
     Route::get('/metrics/by-month', [MetricsController::class, 'byMonth']);
 
-    // QR Code por ID – apenas o dono do link
+    // QR por ID (somente dono)
     Route::get('/links/{link}/qrcode', [QrCodeController::class, 'showById']);
 });

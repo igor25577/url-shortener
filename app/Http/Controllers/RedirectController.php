@@ -2,38 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use App\Models\Link;
 use App\Models\Visit;
-use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class RedirectController extends Controller
 {
-    public function bySlug(Request $request, string $slug)
+    public function redirect(Request $request, string $slug)
     {
         $link = Link::where('slug', $slug)->first();
 
         if (!$link) {
-            return response()->json(['message' => 'Not found'], 404);
+            // Não encontrado
+            return response()->json(['message' => 'Not Found'], 404);
         }
 
-        if (!is_null($link->expires_at) && Carbon::parse($link->expires_at)->isPast()) {
+        // Se tiver expiração e já expirou, 410 Gone
+        if ($link->expires_at && now()->greaterThanOrEqualTo($link->expires_at)) {
             return response()->json(['message' => 'Link expired'], 410);
         }
 
-        $link->increment('click_count');
+        // Registra visita e incrementa contador de forma atômica
+        DB::transaction(function () use ($request, $link) {
+            $ip = $request->header('X-Forwarded-For') ?: $request->ip();
+            $ua = $request->userAgent() ?: '';
 
-        try {
             Visit::create([
-                'link_id'    => $link->id,
-                'user_agent' => $request->header('User-Agent'), 
-                'ip_address' => $request->ip(),
+                'link_id' => $link->id,
+                'ip'      => $ip,
+                'user_agent' => $ua,
+                'visited_at' => now(),
             ]);
-        } catch (\Throwable $e) {
-            Log::warning('visit create failed', ['error' => $e->getMessage()]);
-        }
 
+            $link->increment('click_count');
+        });
+
+        // 302 para a URL original
         return redirect()->away($link->original_url, 302);
     }
 }
