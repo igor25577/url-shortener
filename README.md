@@ -152,6 +152,15 @@ Exemplos de mensagens:
 - QR Code gerado a partir da short_url (ex.: /api/s/{slug})
 - RedirectController retorna 410 para links expirados; incrementa click_count antes de redirecionar
 - Resposta de criação inclui `link.slug` (utilizado pelos testes)
+- 
+
+### Rate limiting
+
+A criação de links é limitada a 30 requisições por minuto por usuário.
+
+- Rota: POST /api/links
+- Middleware: throttle:30,1 aplicado apenas nesta rota
+- Teste automático: tests/Feature/RateLimitLinksTest.php garante 429 ao exceder o limite
 
 ## Desenvolvimento
 
