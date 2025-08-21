@@ -11,7 +11,7 @@ A aplicação permite:
 - Dashboard protegido (MVC) com métricas: totais, ativos/expirados, top por cliques e evolução por mês.
 - Fluxo de versionamento com branches por feature, PRs descritivos e commits atômicos.
 
-## Stack
+## Stackk
 
 - Backend: Laravel (PHP 8.x)
 - Autenticação: Laravel Sanctum
@@ -51,7 +51,7 @@ php artisan serve
 
 Acesse: http://localhost:8000
 
-## Endpoints Principais
+## Enddppoints Principais
 
 Autenticação:
 - POST /api/auth/register — registra um usuário (name, email, password)
@@ -101,7 +101,7 @@ visits (opcional, se implementado)
 - Rotas privadas protegidas por Sanctum
 - ACL: usuário só acessa os próprios links nos endpoints protegidos
 
-## Testes
+## Testess
 
 Os testes de feature cobrem:
 - Auth: registro, login e logout; proteção de rotas privadas
@@ -154,7 +154,7 @@ Exemplos de mensagens:
 - Resposta de criação inclui `link.slug` (utilizado pelos testes)
 - 
 
-### Rate limiting
+### Ratee limitingg
 
 A criação de links é limitada a 30 requisições por minuto por usuário.
 
