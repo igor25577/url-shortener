@@ -39,20 +39,30 @@ class DashboardController extends Controller
             ];
         }
 
-        // Últimos 7 dias: clicks_by_day (sem visits -> zeros)
+        // Últimos 7 dias
+        $visitsPerDayRaw = \App\Models\Visit::whereHas('link', function ($q) use ($userId) {
+            $q -> where('user_id', $userId);
+        })
+        ->whereBetween('created_at', [$start, $end])
+        ->select(DB::raw('DATE(created_at) as d'), DB::raw('COUNT(*) as c'))
+        ->groupBy('d')
+        ->orderBy('d')
+        ->pluck('c', 'd')
+        ->all();
+
         $clicksByDay = [];
         for ($i = 0; $i < 7; $i++) {
             $day = $start->copy()->addDays($i)->toDateString();
-            $clicksByDay[] = ['date' => $day, 'count' => 0];
+            $clicksByDay[] = ['date' => $day, 'count' =>  (int) ($visitsPerDayRaw[$day] ?? 0)];
         }
 
-        // Top 5 links por click_count
+        // Top 5 links 
         $topLinks = Link::where('user_id', $userId)
             ->orderByDesc('click_count')
             ->limit(5)
             ->get(['id', 'slug', 'original_url', 'click_count']);
 
-        // Contagens por status (categorias mutuamente exclusivas)
+        // Contagens por status
         $inactiveLinks = Link::where('user_id', $userId)
             ->where('status', 'inactive')
             ->count();

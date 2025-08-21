@@ -23,4 +23,9 @@ class Link extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function visits()
+    {
+        return $this->hasMany(Visit::class);
+    }
 }

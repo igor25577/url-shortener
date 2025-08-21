@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use App\Models\Link;
+use App\Models\Visit;
 use Carbon\Carbon;
 
 class RedirectController extends Controller
 {
-    public function bySlug(string $slug)
+    public function bySlug(Request $request, string $slug)
     {
         $link = Link::where('slug', $slug)->first();
 
@@ -20,6 +23,16 @@ class RedirectController extends Controller
         }
 
         $link->increment('click_count');
+
+        try {
+            Visit::create([
+                'link_id'    => $link->id,
+                'user_agent' => $request->header('User-Agent'), 
+                'ip_address' => $request->ip(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('visit create failed', ['error' => $e->getMessage()]);
+        }
 
         return redirect()->away($link->original_url, 302);
     }

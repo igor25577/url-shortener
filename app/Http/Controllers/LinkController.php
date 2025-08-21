@@ -38,7 +38,6 @@ class LinkController extends Controller
         $shortUrl = url("/api/s/{$slug}");
         $qrcodeUrl = url("/api/qrcode/{$slug}");
 
-        // resposta em formato json 
         return response()->json([
             'id' => $link->id,
             'slug' => $link->slug,

@@ -64,7 +64,7 @@ class MetricsController extends Controller
     {
         $userId = $request->user()->id;
 
-        // Últimos 6 meses (inclui o mês atual)
+        // Últimos 6 meses 
         $start = Carbon::now()->subMonths(5)->startOfMonth();
         $end = Carbon::now()->endOfMonth();
 
@@ -88,14 +88,25 @@ class MetricsController extends Controller
             ->pluck('c', 'ym')
             ->all();
 
-        // Monta 6 meses contínuos, preenchendo zeros
+        // Visits por mês (clicks reais) no período, considerando apenas links do usuário
+        $visitsPerMonthRaw = \App\Models\Visit::whereHas('link', function ($q) use ($userId) {
+            $q->where('user_id', $userId);
+        })
+        ->whereBetween('created_at', [$start, $end])
+        ->select(\DB::raw("$formatExpr as ym"), \DB::raw('COUNT(*) as c'))
+        ->groupBy('ym')
+        ->orderBy('ym')
+        ->pluck('c', 'ym')
+        ->all();
+
+        // Monta 6 meses contínuos
         $months = [];
         for ($i = 0; $i < 6; $i++) {
             $m = $start->copy()->addMonths($i)->format('Y-m');
             $months[] = [
                 'month' => $m,
                 'links' => (int) ($linksPerMonthRaw[$m] ?? 0),
-                'clicks' => 0, 
+                'clicks' => (int) ($visitsPerMonthRaw[$m] ?? 0), 
             ];
         }
 
