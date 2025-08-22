@@ -52,7 +52,7 @@ Thumbs.db
 !/storage/logs/.gitignore
 !/storage/*.gitignore
 
-# Bootstrap cache: ignorar conteúdo, mas manter pasta
+# Bootstrap cache
 /bootstrap/cache/*
 !/bootstrap/cache/.gitignore
 
