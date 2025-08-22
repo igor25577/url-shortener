@@ -1,39 +1,61 @@
+# Logs e comuns
 *.log
 .DS_Store
 Thumbs.db
 
+# Env 
 .env
 .env.backup
+.env.producao
 .env.produção
+.env.testing.local
 
-.phpactor.json
+# PHPUnit
 .phpunit.result.cache
 /.phpunit.cache
 
-/.frota
-/.ideia
+# IDE/editor
+/.fleet
+/.idea
 /.nova
 /.vscode
 /.zed
+/.frota
+/.ideia
 
-/auth.json
+# Vendors/build
 /node_modules
 /vendor
 
-/público/construir
-/público/quente
-/público/armazenamento
-público/mix-manifest.json
+# Public build e links
+/public/build
+/public/hot
+/public/storage
+/public/mix-manifest.json
 
-/storage/*.key
-/storage/pail
-storage/logs/
-storage/framework
-/ storage/framework/cache/
-storage/framework/sessions/
-storage/framework/views/
+# Storage
+/storage/*
+!/storage/.gitignore
+!/storage/app/
+!/storage/app/.gitignore
+!/storage/app/public/
+!/storage/app/public/.gitignore
+!/storage/framework/
+!/storage/framework/.gitignore
+!/storage/framework/cache/
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/
+!/storage/framework/sessions/.gitignore
+!/storage/framework/views/
+!/storage/framework/views/.gitignore
+!/storage/logs/
+!/storage/logs/.gitignore
+!/storage/*.gitignore
 
-bootstrap/cache/
+# Bootstrap cache: ignorar conteúdo, mas manter pasta
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
 
+# Homestead
 Homestead.json
 Homestead.yaml
