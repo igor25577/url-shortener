@@ -53,40 +53,51 @@ class QrCodeTest extends TestCase
         $this -> get("/api/qrcode/{$link -> slug}") ->assertStatus(410);
     }
 
-    public function test_owner_only_can_Acess_qrcode_by_id()
+    public function test_owner_only_can_acess_qrcode_by_id(): void
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
 
-        $link = Link::factory()->create([
-            'user_id' => $owner->id,
-            'original_url' => 'https://google.com',
-            'expires_at' => null,          
-            
+        $link = Link::factory()->for($owner)->create([
+            'original_url' => 'https://laravel.com',
+            'expires_at' => now()->addDay(),
         ]);
 
-        // caso seja autenticado como outro usuário
-        $this->actingAs($other, 'sanctum');
-        $this ->get("/api/links/{$link->id}/qrcode")->assertStatus(404);
+        // autenticar como outro usuário via Bearer
+        $login = $this->postJson('/api/login', [
+            'email' => $other->email,
+            'password' => 'password',
+        ])->assertStatus(200);
+
+        $token = $login->json('token');
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token]);
+
+        // como não-dono, deve responder 404 (oculta existência)
+        $this->get("/api/links/{$link->id}/qrcode")->assertStatus(404);
     }
 
-
-    public function test_autheticated_owner_gets_png_by_id()
+    public function test_autheticated_owner_gets_png_by_id(): void
     {
         $owner = User::factory()->create();
 
-        $link = Link::factory()->create([
-            'user_id' => $owner ->id,
-            'original_url'  => 'https://php.net',
-            'expires_at' => null,
+        $link = Link::factory()->for($owner)->create([
+            'original_url' => 'https://laravel.com',
+            'expires_at' => now()->addDay(),
         ]);
 
-        $this->actingAs($owner, 'sanctum');
+        // autenticar como dono via Bearer
+        $login = $this->postJson('/api/login', [
+            'email' => $owner->email,
+            'password' => 'password',
+        ])->assertStatus(200);
+
+        $token = $login->json('token');
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token]);
+
         $res = $this->get("/api/links/{$link->id}/qrcode");
         $res->assertStatus(200);
         $res->assertHeader('Content-Type', 'image/png');
         $this->assertNotEmpty($res->getContent());
-
     }
 
 }

@@ -54,6 +54,13 @@ class LinkController extends Controller
 
     public function index(Request $request)
     {
+
+        \Log::debug('AUTH DEBUG', [
+            'has_user' => (bool) $request->user(),
+            'auth_user_id' => optional($request->user())->id,
+            'auth_header' => $request->header('Authorization'),
+        ]);
+
         if (!$request->user()) {
             return response()->json(['message' => 'Unauthenticated (debug)'], 401);
         }

@@ -10,22 +10,21 @@ class Link extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'original_url',
         'slug',
-        'click_count',
-        'status',
         'expires_at',
-        'user_id',
+        'click_count',
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'click_count' => 'integer',
+        'user_id' => 'integer',
     ];
 
-    public function visits()
+    public function user()
     {
-        return $this->hasMany(Visit::class);
+        return $this->belongsTo(User::class);
     }
 }

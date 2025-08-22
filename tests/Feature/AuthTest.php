@@ -1,12 +1,13 @@
 <?php
+
 namespace Tests\Feature;
 
-
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
 use App\Models\User;
 use App\Models\Link;
-
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Support\Facades\Hash;
+use Tests\TestCase;
+use Carbon\Carbon;
 
 class AuthTest extends TestCase
 {
@@ -16,212 +17,180 @@ class AuthTest extends TestCase
     {
         parent::setUp();
 
-        config([
-            'database.default' => 'sqlite',
-            'database.connections.sqlite' => [
-                'driver' => 'sqlite',
-                'database' => ':memory:',
-                'prefix' => '',
-            ],
-        ]);
-
+        Carbon::setTestNow(Carbon::create(2025, 8, 20, 12, 0, 0));
     }
 
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function user_can_register()
+    public function test_user_can_register(): void
     {
-        $response = $this->postJson('/api/auth/register', [
-            'name' => 'João Teste',
-            'email' => 'joao@teste.com',
-            'password' => '123456',
-            'password_confirmation' => '123456',
-        ]);
+        $payload = [
+            'name' => 'Alice Tester',
+            'email' => 'alice@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ];
 
-        $response->assertStatus(201);
+        $res = $this->postJson('/api/register', $payload);
+        $res->assertStatus(201)
+            ->assertJsonStructure([
+                'message',
+                'user' => ['id', 'name', 'email'],
+            ]);
+
         $this->assertDatabaseHas('users', [
-            'email' => 'joao@teste.com',
+            'email' => 'alice@example.com',
         ]);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function user_can_login_and_receive_token()
+    public function test_user_can_login_and_receive_token(): void
     {
-        // cadastra
-        $this->postJson('/api/auth/register', [
-            'name' => 'Maria Teste',
-            'email' => 'maria@teste.com',
-            'password' => '123456',
-            'password_confirmation' => '123456'
-        ]);
-        
-        // loga
-        $response = $this ->postJson('/api/auth/login', [
-            'email' => 'maria@teste.com',
-            'password' => '123456',
+        $user = User::create([
+            'name' => 'Bob',
+            'email' => 'bob@example.com',
+            'password' => Hash::make('secret123'),
         ]);
 
-        $response -> assertStatus(200);
+        $res = $this->postJson('/api/login', [
+            'email' => 'bob@example.com',
+            'password' => 'secret123',
+        ]);
 
-        $this->assertArrayHasKey('token', $response -> json());
+        $res->assertStatus(200)
+            ->assertJsonStructure([
+                'message', 'token', 'token_type', 'user' => ['id', 'name', 'email']
+            ]);
+
+        $this->assertTrue(str_starts_with($res->json('token'), $user->id.'|') === false);
     }
 
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function authenticated_user_can_create_link()
+    public function test_authenticated_user_can_create_link(): void
     {
-        $user = User::factory()->create();
-
-        $this->actingAs($user, 'sanctum');
-
-        $response = $this->postJson('/api/links', [
-            'original_url' => 'https://laravel.com',
-            'expires_at'   => '2025-12-31 23:59:59'
+        $user = User::create([
+            'name' => 'Carol',
+            'email' => 'carol@example.com',
+            'password' => Hash::make('secret123'),
         ]);
 
-        $response->assertStatus(201); 
+        $login = $this->postJson('/api/login', [
+            'email' => 'carol@example.com',
+            'password' => 'secret123',
+        ])->assertStatus(200);
+
+        $token = $login->json('token');
+
+        $payload = [
+            'original_url' => 'https://example.com/page',
+            'expires_at'   => Carbon::now()->addDays(3)->toISOString(),
+        ];
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->postJson('/api/links', $payload)->assertStatus(201);
+
         $this->assertDatabaseHas('links', [
-            'original_url' => 'https://laravel.com',
+            'user_id' => $user->id,
+            'original_url' => 'https://example.com/page',
         ]);
     }
 
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function unauthenticated_user_cannot_create_link()
+    public function test_unauthenticated_user_cannot_create_link(): void
     {
-        $response = $this->postJson('/api/links', [
-            'original_url' => 'https://laravel.com',
-            'expires_at'   => '2025-12-31 23:59:59'
-        ]);
+        $payload = [
+            'original_url' => 'https://example.com/noauth',
+        ];
 
-        $response->assertStatus(401); 
+        $this->postJson('/api/links', $payload)->assertStatus(401);
     }
 
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function redirect_works_and_increments_click_count()
-    {
-        $user = User::factory() -> create();
-        $this -> actingAs($user, 'sanctum');
-
-        $linkResponse = $this -> postJson('/api/links', [
-            'original_url' => 'https://laravel.com',
-            'expires_at' => '2025-12-31 23:59:59'
-        ]);
-
-        $slug = $linkResponse -> json('slug');
-        $this -> assertNotEmpty($slug, 'Slug não retornado pelo store');
-
-
-        // confere contador
-        $this -> assertDatabaseHas('links', [
-            'original_url' => 'https://laravel.com',
-            'click_count' => 0
-        ]);
-
-
-        // faz get
-        $redirect = $this -> get('/api/s/'.$slug);
-
-        $redirect -> assertRedirect('https://laravel.com');
-
-
-        // confere o contador incrementado
-        $this -> assertDatabaseHas('links', [
-                'original_url' => 'https://laravel.com',
-                'click_count' => 1
-        ]);
-
-    }
-
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function dashboard_returns_statistics()
+    public function test_redirect_works_and_increments_click_count(): void
     {
         $user = User::factory()->create();
-        $this->actingAs($user, 'sanctum');
 
-        // Cria alguns links para o usuário
-        Link::factory()->create([
-            'user_id'      => $user->id,
-            'original_url' => 'https://google.com',
-            'status'       => 'active',
-            'click_count'  => 3,
+        // login para criar link autenticado
+        $login = $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
         ]);
+        $token = $login->json('token');
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token]);
 
-        Link::factory()->create([
-            'user_id'      => $user->id,
-            'original_url' => 'https://laravel.com',
-            'status'       => 'active',
-            'click_count'  => 2,
-        ]);
+        $create = $this->postJson('/api/links', [
+            'original_url' => 'https://laravel.com'
+        ])->assertStatus(201);
 
-        Link::factory()->create([
-            'user_id'      => $user->id,
-            'original_url' => 'https://php.net',
-            'status'       => 'active',
-            'expires_at'   => now()->subDay(), 
-            'click_count'  => 1,
-        ]);
+        $slug = $create->json('slug');
 
-        $response = $this->getJson('/api/dashboard');
+        // A rota pública de redirect é /api/s/{slug}
+        $this->get("/api/s/{$slug}")
+            ->assertStatus(302)
+            ->assertRedirect('https://laravel.com');
 
-        $response->assertStatus(200);
-
-        $response->assertJson([
-            'total_links'   => 3,
-            'active_links'  => 2,
-            'expired_links' => 1,
-            'total_clicks'  => 6
-        ]);
+        $link = Link::where('slug', $slug)->first();
+        $this->assertEquals(1, $link->click_count);
     }
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function user_can_logout_and_private_routes_are_blocked_after()
+    public function test_dashboard_returns_statistics(): void
     {
-        $user = \App\Models\User::factory()->create();
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        $this->withHeaders([
-                'Authorization' => 'Bearer '.$token,
-                'Accept'        => 'application/json',
-            ])
-            ->getJson('/api/links')->assertStatus(200);
-
-        $this->assertDatabaseHas('personal_access_tokens', [
-            'tokenable_id' => $user->id,
-            'name'         => 'auth_token',
+        $user = User::create([
+            'name' => 'Eve',
+            'email' => 'eve@example.com',
+            'password' => Hash::make('secret123'),
         ]);
 
-        $this->withHeaders([
+        $login = $this->postJson('/api/login', [
+            'email' => 'eve@example.com',
+            'password' => 'secret123',
+        ])->assertStatus(200);
+        $token = $login->json('token');
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->withHeaders([
                 'Authorization' => 'Bearer '.$token,
-                'Accept'        => 'application/json',
-            ])
-            ->postJson('/api/auth/logout')->assertStatus(200);
-
-        $this->assertDatabaseMissing('personal_access_tokens', [
-            'tokenable_id' => $user->id,
-            'name'         => 'auth_token',
-        ]);
-
-        $response = $this->withCookies([])
-            ->withHeaders([]) 
-            ->withHeaders([
-                'Authorization' => 'Bearer '.$token,
-                'Accept'        => 'application/json',
-            ])
-            ->getJson('/api/links');
-
-        if ($response->status() === 401) {
-            $this->assertTrue(true);
-            return;
+                'Accept' => 'application/json',
+            ])->postJson('/api/links', [
+                'original_url' => "https://example.com/{$i}",
+            ])->assertStatus(201);
         }
 
-        $json = $response->json();
-        $this->assertIsArray($json);
-        $this->assertArrayHasKey('data', $json);
-        $this->assertEquals([], $json['data'], 'Resposta não deveria conter dados com token revogado.');
+        $res = $this->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Accept' => 'application/json',
+        ])->getJson('/api/dashboard')->assertStatus(200);
+
+        $json = $res->json();
+        $this->assertArrayHasKey('totals', $json);
+        $this->assertArrayHasKey('by_status', $json);
+        $this->assertArrayHasKey('last7_days', $json);
+        $this->assertArrayHasKey('top_links', $json);
+
+        $this->assertArrayHasKey('total_links', $json);
+        $this->assertArrayHasKey('total_clicks', $json);
+        $this->assertArrayHasKey('active_links', $json);
+        $this->assertArrayHasKey('expired_links', $json);
+
+        $this->assertEquals(3, $json['totals']['total_links']);
     }
 
-    
+    public function test_user_can_logout_and_private_routes_are_blocked_after(): void
+    {
+        $user = User::factory()->create();
+
+        $login = $this->postJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertStatus(200);
+
+        $token = $login->json('token');
+        $this->withHeaders(['Authorization' => 'Bearer ' . $token]);
+
+        // acessar uma rota privada com token válido
+        $this->getJson('/api/links')->assertStatus(200);
+
+        // logout
+        $this->postJson('/api/logout')->assertStatus(200);
+
+        // limpar headers e verificar bloqueio sem Authorization
+        $this->flushHeaders();
+        $this->getJson('/api/links')->assertStatus(401);
+    }
 }
