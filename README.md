@@ -31,25 +31,20 @@ A aplicação permite:
 
 ## Setup Rápido
 
-1. Clonar e instalar dependências:
-2. git clone https://github.com/igor25577/url-shortener.git
-cd url-shortener
-composer install
+1 - Clonar e instalar dependências
+    git clone https://github.com/igor25577/url-shortener.git
+    cd url-shortener
+    composer install
+2 - Variáveis de ambiente
+    cp .env.example .env
+    php artisan key:generate
+    Ajuste as variáveis DB_* no .env conforme seu ambiente (por padrão, PostgreSQL local).
+3 - Migrations
+    php artisan migrate
+4 - Servir a aplicação
+    php artisan serve
+    Acesse: http://localhost:8000
 
-2. Variáveis de ambiente:
-cp .env.example .env
-php artisan key:generate
-
-Ajuste as variáveis DB_* no .env conforme seu ambiente (por padrão, PostgreSQL local).
-
-3. Migrations (e seeds, se existirem):
-php artisan migrate
-
-
-4. Servir a aplicação:
-php artisan serve
-
-Acesse: http://localhost:8000
 
 ## Enddppoints Principais
 
@@ -81,13 +76,13 @@ Observação: caminhos variam conforme sua configuração de rotas. No projeto a
 ## Modelo de Dados (resumo)
 
 users
-- id, name, email (unique), password, timestamps
+- id, name, email (unique), password, timestamps.
 
 links
-- id, user_id (FK), original_url, slug (unique), status (active|expired|inactive), expires_at (nullable), click_count (int, default 0), timestamps
+- id, user_id (FK), original_url, slug (unique), status (active|expired|inactive), expires_at (nullable), click_count (int, default 0), timestamps.
 
 visits (opcional, se implementado)
-- id, link_id (FK), ip_hash (ou IP truncado), user_agent, created_at
+- id, link_id (FK), ip_hash (ou IP truncado), user_agent, created_at.
 
 ## Regras Importantes
 
@@ -173,6 +168,24 @@ php artisan migrate
 
 - Servir aplicação:
 php artisan serve
+
+
+## Troubleshooting
+# Erro: “Please provide a valid cache path.”
+
+    Causa: ausência/permissão das pastas de cache do Laravel.
+    Solução:
+    Garanta que existam:
+    storage/framework/cache
+    storage/framework/sessions
+    storage/framework/views
+    storage/logs
+    bootstrap/cache
+    Rode:
+    php artisan optimize:clear
+    php artisan key:generate (se necessário)
+    php artisan migrate
+    Verifique permissões de escrita em storage/ e bootstrap/cache.
 
 
 ## Licença
