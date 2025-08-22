@@ -188,6 +188,75 @@ php artisan serve
     Verifique permissões de escrita em storage/ e bootstrap/cache.
 
 
+
+
+
+## Setup rápido (SQLite – sem Postgres)
+    Requisitos: PHP 8.2+, Composer
+# Passos:
+    1 - Clonar e entrar
+        git clone https://github.com/igor25577/url-shortener
+        cd url-shortener
+    2 - Instalar dependências
+        composer install
+    3 - Criar .env e gerar chave
+        copy .env.example .env
+        php artisan key:generate
+    4 - Configurar SQLite no .env
+        DB_CONNECTION=sqlite
+        DB_DATABASE=database/database.sqlite
+        Remova/comente DB_HOST/DB_PORT/DB_USERNAME/DB_PASSWORD
+    5 - Criar arquivo do banco (PowerShell)
+        New-Item -ItemType Directory -Path .\database -Force | Out-Null
+        New-Item -ItemType File -Path .\database\database.sqlite -Force | Out-Null
+        Alternativa CMD:
+        mkdir database
+        type nul > database\database.sqlite
+    6 - Migrar e subir
+        php artisan migrate
+        php artisan serve
+        Acesse http://localhost:8000
+## Testes automatizados
+    Já usam .env.testing com SQLite in-memory
+    º Executar:
+        php artisan test
+## Fluxo básico de API (para Insomnia/Postman)
+# Registrar: POST /api/auth/register
+    - Body:
+        { "name": "Test", "email": "test@example.com", "password": "secret", "password_confirmation": "secret" }
+    - Login: POST /api/auth/login → copia o token
+    - Criar link: POST /api/links (Authorization: Bearer TOKEN)
+        Body: { "original_url": "https://example.com" }
+    - Redirecionar: GET /api/s/{slug}
+        Dica: desative “Follow redirects” para ver 302 + Location
+    - Métricas: GET /api/metrics/summary (Authorization: Bearer TOKEN)
+## Setup com Postgres (opcional)
+    Requer pdo_pgsql habilitado no PHP.
+    1- .env:
+        DB_CONNECTION=pgsql
+        DB_HOST=127.0.0.1
+        DB_PORT=5432
+        DB_DATABASE=url_shortener
+        DB_USERNAME=postgres
+        DB_PASSWORD=postgres
+    Habilite extensões no PHP: pdo_pgsql e pgsql.
+    php artisan migrate
+
+    
+# Checklist de arquivos versionados
+
+bootstrap/cache/.gitignore
+storage/.gitignore
+storage/app/.gitignore
+storage/app/public/.gitignore
+storage/framework/.gitignore
+storage/framework/cache/.gitignore
+storage/framework/sessions/.gitignore
+storage/framework/views/.gitignore
+storage/logs/.gitignore
+.env.example e .env.testing
+
+
 ## Licença
 
 Este projeto é disponibilizado para avaliação técnica. Ajuste a licença conforme sua necessidade.
